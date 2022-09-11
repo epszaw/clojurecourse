@@ -4,7 +4,6 @@
 (defn- parse-int [int-str]
   (Integer/parseInt int-str))
 
-
 (def student-tbl (csv/parse-csv (slurp "student.csv")))
 (def subject-tbl (csv/parse-csv (slurp "subject.csv")))
 (def student-subject-tbl (csv/parse-csv (slurp "student_subject.csv")))
@@ -26,7 +25,7 @@
 (defn key-value-pairs [tbl-keys tbl-record]
   (->> tbl-record
        (map #(list %1 %2) tbl-keys)
-       (flatten)))
+       flatten))
 
 ;; (data-record [:id :surname :year :group_id] ["1" "Ivanov" "1996"])
 ;; => {:surname "Ivanov", :year "1996", :id "1"}
@@ -43,18 +42,16 @@
 ;;
 ;; Hint: let, map, next, table-keys, data-record
 (defn data-table [tbl]
-  (let [keys (table-keys tbl)
-        values (next tbl)]
-        (->> values
-             (map #(data-record keys %)))))
+  (let [tbl-keys (table-keys tbl)]
+    (->> (next tbl)
+         (map #(data-record tbl-keys %)))))
 
 ;; (str-field-to-int :id {:surname "Ivanov", :year "1996", :id "1"})
 ;; => {:surname "Ivanov", :year "1996", :id 1}
 ;;
 ;; Hint: assoc, Integer/parseInt, get
 (defn str-field-to-int [field rec]
-  (->> field
-       (get rec)
+  (->> (get rec field)
        (Integer/parseInt)
        (assoc rec field)))
 
@@ -105,12 +102,14 @@
   ;; 4. Use function 'merge' and merge element1 with each element2.
   ;; 5. Collect merged elements.
   (reduce
-    (fn [acc item]
-      (conj acc (->> data2
-                     (filter #(= (get item column1) (get % column2)))
-                     (reduce #(merge %2 %1) item))))
+    (fn [elements element1]
+      (->> (filter #(= (get element1 column1) (get % column2)) data2)
+           (reduce #(merge %2 %1) element1)
+           (conj elements)))
     []
     data1))
+
+(join* (join* student-subject :student_id student :id) :subject_id subject :id)
 
 ;; (perform-joins student-subject [[:student_id student :id] [:subject_id subject :id]])
 ;; => [{:subject "Math", :subject_id 1, :surname "Ivanov", :year 1998, :student_id 1, :id 1} {:subject "Math", :subject_id 1, :surname "Petrov", :year 1997, :student_id 2, :id 2} {:subject "CS", :subject_id 2, :surname "Petrov", :year 1997, :student_id 2, :id 2} {:subject "CS", :subject_id 2, :surname "Sidorov", :year 1996, :student_id 3, :id 3}]
@@ -132,26 +131,26 @@
       (order-by* order-by)
       (limit* limit)))
 
-;; (select student)
-;; ;; => ({:id 1, :year 1998, :surname "Ivanov"} {:id 2, :year 1997, :surname "Petrov"} {:id 3, :year 1996, :surname "Sidorov"})
-;; 
-;; (select student :order-by :year)
-;; ;; => ({:id 3, :year 1996, :surname "Sidorov"} {:id 2, :year 1997, :surname "Petrov"} {:id 1, :year 1998, :surname "Ivanov"})
-;; 
-;; (select student :where #(> (:id %) 1))
-;; ;; => ({:id 2, :year 1997, :surname "Petrov"} {:id 3, :year 1996, :surname "Sidorov"})
-;; 
-;; (select student :limit 2)
-;; ;; => ({:id 1, :year 1998, :surname "Ivanov"} {:id 2, :year 1997, :surname "Petrov"})
-;; 
-;; (select student :where #(> (:id %) 1) :limit 1)
-;; ;; => ({:id 2, :year 1997, :surname "Petrov"})
-;; 
-;; (select student :where #(> (:id %) 1) :order-by :year :limit 2)
-;; ;; => ({:id 3, :year 1996, :surname "Sidorov"} {:id 2, :year 1997, :surname "Petrov"})
-;; 
-;; (select student-subject :joins [[:student_id student :id] [:subject_id subject :id]])
-;; ;; => [{:subject "Math", :subject_id 1, :surname "Ivanov", :year 1998, :student_id 1, :id 1} {:subject "Math", :subject_id 1, :surname "Petrov", :year 1997, :student_id 2, :id 2} {:subject "CS", :subject_id 2, :surname "Petrov", :year 1997, :student_id 2, :id 2} {:subject "CS", :subject_id 2, :surname "Sidorov", :year 1996, :student_id 3, :id 3}]
-;; 
-;; (select student-subject :limit 2 :joins [[:student_id student :id] [:subject_id subject :id]])
-;; ;; => ({:subject "Math", :subject_id 1, :surname "Ivanov", :year 1998, :student_id 1, :id 1} {:subject "Math", :subject_id 1, :surname "Petrov", :year 1997, :student_id 2, :id 2})
+(select student)
+;; => [{:id 1, :year 1998, :surname "Ivanov"} {:id 2, :year 1997, :surname "Petrov"} {:id 3, :year 1996, :surname "Sidorov"}]
+
+(select student :order-by :year)
+;; => ({:id 3, :year 1996, :surname "Sidorov"} {:id 2, :year 1997, :surname "Petrov"} {:id 1, :year 1998, :surname "Ivanov"})
+
+(select student :where #(> (:id %) 1))
+;; => ({:id 2, :year 1997, :surname "Petrov"} {:id 3, :year 1996, :surname "Sidorov"})
+
+(select student :limit 2)
+;; => ({:id 1, :year 1998, :surname "Ivanov"} {:id 2, :year 1997, :surname "Petrov"})
+
+(select student :where #(> (:id %) 1) :limit 1)
+;; => ({:id 2, :year 1997, :surname "Petrov"})
+
+(select student :where #(> (:id %) 1) :order-by :year :limit 2)
+;; => ({:id 3, :year 1996, :surname "Sidorov"} {:id 2, :year 1997, :surname "Petrov"})
+
+(select student-subject :joins [[:student_id student :id] [:subject_id subject :id]])
+;; => [{:subject "Math", :subject_id 1, :surname "Ivanov", :year 1998, :student_id 1, :id 1} {:subject "Math", :subject_id 1, :surname "Petrov", :year 1997, :student_id 2, :id 2} {:subject "CS", :subject_id 2, :surname "Petrov", :year 1997, :student_id 2, :id 2} {:subject "CS", :subject_id 2, :surname "Sidorov", :year 1996, :student_id 3, :id 3}]
+
+(select student-subject :limit 2 :joins [[:student_id student :id] [:subject_id subject :id]])
+;; => ({:subject "Math", :subject_id 1, :surname "Ivanov", :year 1998, :student_id 1, :id 1} {:subject "Math", :subject_id 1, :surname "Petrov", :year 1997, :student_id 2, :id 2})
