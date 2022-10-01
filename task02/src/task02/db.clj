@@ -21,9 +21,9 @@
   (update-in rec [field] parse-int))
 
 ;; Место для хранения данных - используйте atom/ref/agent/...
-(def student :implement-me)
-(def subject :implement-me)
-(def student-subject :implement-me)
+(def student (atom []))
+(def subject (atom []))
+(def student-subject (atom []))
 
 ;; функция должна вернуть мутабельный объект используя его имя
 (defn get-table [^String tb-name]
@@ -38,14 +38,17 @@
 ;;; и сохраняет их в изменяемых переменных student, subject, student-subject
 (defn load-initial-data []
   ;;; :implement-me может быть необходимо добавить что-то еще
-  (:implement-me student (->> (data-table (csv/read-csv (slurp "student.csv")))
+  (reset! student (->> (data-table (csv/read-csv (slurp "student.csv")))
                      (map #(str-field-to-int :id %))
-                     (map #(str-field-to-int :year %))))
-  (:implement-me subject (->> (data-table (csv/read-csv (slurp "subject.csv")))
-                     (map #(str-field-to-int :id %))))
-  (:implement-me student-subject (->> (data-table (csv/read-csv (slurp "student_subject.csv")))
+                     (map #(str-field-to-int :year %))
+                     vec))
+  (reset! subject (->> (data-table (csv/read-csv (slurp "subject.csv")))
+                     (map #(str-field-to-int :id %))
+                     vec))
+  (reset! student-subject (->> (data-table (csv/read-csv (slurp "student_subject.csv")))
                              (map #(str-field-to-int :subject_id %))
-                             (map #(str-field-to-int :student_id %)))))
+                             (map #(str-field-to-int :student_id %))
+                             vec)))
 
 ;; select-related functions...
 (defn where* [data condition-func]
@@ -99,8 +102,10 @@
 ;;   (delete student) -> []
 ;;   (delete student :where #(= (:id %) 1)) -> все кроме первой записи
 (defn delete [data & {:keys [where]}]
-  :implement-me
-  )
+  (if (nil? where)
+    (reset! data [])
+    (swap! data (fn [cur]
+                  (filter #(not (where %)) cur)))))
 
 ;; Данная функция должна обновить данные в строках соответствующих указанному предикату
 ;; (или во всей таблице).
@@ -112,9 +117,17 @@
 ;;   (update student {:id 5})
 ;;   (update student {:id 6} :where #(= (:year %) 1996))
 (defn update [data upd-map & {:keys [where]}]
-  :implement-me
-  )
-
+  (if (nil? where)
+    (swap! data (fn [cur]
+                  (->> cur
+                       (map #(merge % upd-map)))))
+    (swap! data (fn [cur]
+                  (reduce (fn [acc item]
+                            (if (where item)
+                              (conj acc (merge item upd-map))
+                              (conj acc item)))
+                          []
+                          cur)))))
 
 ;; Вставляет новую строку в указанную таблицу
 ;;
@@ -124,6 +137,6 @@
 ;; Примеры использования:
 ;;   (insert student {:id 10 :year 2000 :surname "test"})
 (defn insert [data new-entry]
-  :implement-me
-  )
+  (swap! data (fn [cur]
+                (conj cur new-entry))))
 

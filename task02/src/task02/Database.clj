@@ -8,5 +8,11 @@
 
   ;; Hint: load-initial-data, pr-str, perform-query
   ; :implement-me
-  )
+  (:gen-class))
+
+(defn -InitDatabase []
+  (task02.db/load-initial-data))
+
+(defn -Select [^String query]
+  (task02.query/perform-query query))
 

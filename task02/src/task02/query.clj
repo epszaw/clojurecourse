@@ -1,5 +1,7 @@
 (ns task02.query
-  (:use [task02 helpers db]))
+  (:use [task02 helpers db]
+        [clojure.string :as str]
+        [clojure.core.match :only [match]]))
 
 ;; Функция выполняющая парсинг запроса переданного пользователем
 ;;
@@ -34,10 +36,28 @@
 ;; ("student" :where #<function> :order-by :id :limit 2 :joins [[:id "subject" :sid]])
 ;; > (parse-select "werfwefw")
 ;; nil
-(defn parse-select [^String sel-string]
-  :implement-me)
 
-(defn make-where-function [& args] :implement-me)
+(defn make-where-function [col op val]
+  (let [k (keyword col)
+        v (if (re-find #"'.+'" val) val (Integer/parseInt val))]
+    (match [op]
+         ["!="] (fn [d]
+                  (if-not (get d k) v))
+         ["="]  (fn [d]
+                  (if (= (get d k) v) val))
+         :else  (fn [d]
+                  ((eval (read-string op)) (get d k) v)))))
+
+(defn parse-select [^String sel-string]
+  (let [sel                (str/split sel-string #"\s")
+        restore-sel-string (fn [sel] (str/join " " sel))]
+    (match sel
+           ["select" tbl & rest] (concat (list tbl) (parse-select (restore-sel-string rest)))
+           ["where" col op val & rest] (concat (list :where (make-where-function col op val)) (parse-select (restore-sel-string rest)))
+           ["order" "by" col & rest] (concat (list :order-by (keyword col)) (parse-select (restore-sel-string rest)))
+           ["limit" lim & rest] (concat (list :limit (Integer/parseInt lim)) (parse-select (restore-sel-string rest)))
+           ["join" tbl "on" col1 "=" col2] (list :joins [[(keyword col1) tbl (keyword col2)]])
+           :else nil)))
 
 ;; Выполняет запрос переданный в строке.  Бросает исключение если не удалось распарсить запрос
 
@@ -54,3 +74,7 @@
   (if-let [query (parse-select sel-string)]
     (apply select (get-table (first query)) (rest query))
     (throw (IllegalArgumentException. (str "Can't parse query: " sel-string)))))
+
+(perform-query "select student")
+(perform-query "select student order by year")
+(perform-query "select student where id > 1")
