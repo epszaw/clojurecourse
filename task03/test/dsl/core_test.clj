@@ -2,6 +2,18 @@
   (:require [clojure.test :refer :all]
             [dsl.core :refer :all]))
 
+(deftest d-op-specs
+  (testing "d-op compares values correctly"
+    (is (d-op > today yesterday))
+    (is (d-op >= today yesterday))
+    (is (d-op < today tomorrow))
+    (is (d-op <= today tomorrow))))
+
+(deftest d-add-specs
+  (testing "d-add allows to manipulate dates"
+    (is (d-add today + 1 'day) tomorrow)
+    (is (d-add today - 1 'day) yesterday)))
+
 (deftest comparisons
   (testing "> < >= <="
     (is (with-datetime
